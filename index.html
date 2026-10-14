@@ -23,6 +23,7 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "微軟正黑體", "Microsoft JhengHei";
       background-color: var(--bg-color);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
@@ -34,15 +35,10 @@
       border-radius: 16px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
       padding: 30px;
-      max-width: 600px;
+      max-width: 650px;
       width: 100%;
       text-align: center;
       position: relative;
-      transition: transform 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
     }
 
     .tag {
@@ -52,7 +48,7 @@
       font-weight: 600;
       padding: 6px 16px;
       border-radius: 20px;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       margin-bottom: 20px;
     }
 
@@ -62,6 +58,7 @@
       color: var(--text-dark);
       line-height: 1.4;
       margin-bottom: 15px;
+      word-break: break-word;
     }
 
     .quote-zh {
@@ -69,6 +66,7 @@
       color: var(--text-muted);
       line-height: 1.5;
       margin-bottom: 25px;
+      word-break: break-word;
     }
 
     .actions {
@@ -108,70 +106,157 @@
     .hidden {
       display: none !important;
     }
+
+    /* 🔍 除錯偵錯區樣式 */
+    .debug-section {
+      margin-top: 25px;
+      max-width: 650px;
+      width: 100%;
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    .debug-toggle-btn {
+      background: none;
+      border: 1px solid #ccc;
+      color: #666;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+
+    .debug-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: left;
+      overflow-x: auto;
+    }
+
+    .debug-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .debug-table th, .debug-table td {
+      border: 1px solid #eee;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+    }
+
+    .debug-table th {
+      background-color: #f8f9fa;
+    }
+
+    .active-row {
+      background-color: #e6f4ea !important;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
   <main class="card">
     <!-- 載入與錯誤訊息區塊 -->
-    <div id="loading" class="status-msg">⏳ 正在讀取每週一句...</div>
+    <div id="loading" class="status-msg">⏳ 正在連線 Google 試算表...</div>
     <div id="error" class="status-msg error-msg hidden"></div>
 
-    <!-- 主要內容區塊 -->
+    <!-- 主要每週一句內容 -->
     <article id="quote-content" class="hidden">
-      <div id="week-tag" class="tag">第 - 週</div>
+      <div id="week-tag" class="tag">載入中...</div>
       <p id="english-text" class="quote-en"></p>
       <p id="chinese-text" class="quote-zh"></p>
       <div class="actions">
-        <button id="speak-btn" class="btn" onclick="speakEnglish()">🔊 發音</button>
+        <button id="speak-btn" class="btn" onclick="speakEnglish()">🔊 朗讀英文</button>
       </div>
     </article>
   </main>
 
+  <!-- 🔍 試算表檢視與除錯面板 -->
+  <section class="debug-section">
+    <button class="debug-toggle-btn" onclick="toggleDebug()">🔍 檢視/除錯試算表抓取資料</button>
+    <div id="debug-box" class="debug-box hidden">
+      <div id="debug-info">讀取中...</div>
+      <table class="debug-table">
+        <thead>
+          <tr>
+            <th>狀態</th>
+            <th>A欄 (週)</th>
+            <th>B欄 (日期)</th>
+            <th>C欄 (英語)</th>
+            <th>D欄 (中文)</th>
+          </tr>
+        </thead>
+        <tbody id="debug-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <script>
     // ==========================================
-    // ⚙️ 設定區（請將您的 Google 試算表 ID 貼於此處）
+    // ⚙️ 設定區（請替換為您的 Google 試算表 ID）
     // ==========================================
-    const SHEET_ID = '1pkrytTQLG_axKCpRJiijE6yz8xnZOAaX_dViXACuHW8'; // 替換為您的試算表 ID
-    const SHEET_NAME = ''; // 第一個工作表可留空
+    const SHEET_ID = '1pkrytTQLG_axKCpRJiijE6yz8xnZOAaX_dViXACuHW8'; // 貼上您的試算表 ID
+    const SHEET_NAME = ''; // 若有指定頁籤名稱可填寫，否則預設第一個工作表
 
-    // Google Visualization API URL
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json${SHEET_NAME ? `&sheet=${encodeURIComponent(SHEET_NAME)}` : ''}`;
+    // CSV 導出網址 (比 JSON 更穩定且不受格式干擾)
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv${SHEET_NAME ? `&sheet=${encodeURIComponent(SHEET_NAME)}` : ''}`;
 
     let currentEnglishText = '';
 
-    // 解析 B 欄日期 (支援 "2026/2/23", "2026/02/23", "2026-02-23" 或 Date(...) 格式)
-    function parseSheetDate(rawVal) {
-      if (!rawVal) return null;
-      const strVal = String(rawVal).trim();
+    // CSV 格式解析器
+    function parseCSV(text) {
+      const lines = [];
+      let row = [];
+      let cur = '';
+      let inQuotes = false;
 
-      // 處理 Google API 原生 Date(YYYY,M,D) 格式
-      const gvizMatch = strVal.match(/Date\((\d+),\s*(\d+),\s*(\d+)\)/);
-      if (gvizMatch) {
-        return new Date(parseInt(gvizMatch[1], 10), parseInt(gvizMatch[2], 10), parseInt(gvizMatch[3], 10));
-      }
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        const next = text[i + 1];
 
-      // 處理斜線或橫線分隔日期："2026/2/23"
-      const parts = strVal.split(/[\/-]/);
-      if (parts.length === 3) {
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // JS 月份為 0~11
-        const day = parseInt(parts[2], 10);
-        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-          return new Date(year, month, day);
+        if (c === '"') {
+          if (inQuotes && next === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (c === ',' && !inQuotes) {
+          row.push(cur.trim());
+          cur = '';
+        } else if ((c === '\r' || c === '\n') && !inQuotes) {
+          if (c === '\r' && next === '\n') i++;
+          row.push(cur.trim());
+          if (row.length > 1 || row[0] !== '') lines.push(row);
+          row = [];
+          cur = '';
+        } else {
+          cur += c;
         }
       }
-
-      const d = new Date(strVal);
-      return isNaN(d.getTime()) ? null : d;
+      if (cur || row.length > 0) {
+        row.push(cur.trim());
+        if (row.length > 1 || row[0] !== '') lines.push(row);
+      }
+      return lines;
     }
 
-    // 安全取得欄位內容
-    function getCellValue(row, colIndex) {
-      if (!row || !row.c || !row.c[colIndex] || row.c[colIndex].v === null || row.c[colIndex].v === undefined) {
-        return '';
+    // 解析日期：支援 "2026/2/23", "2026/02/23", "2026-2-23", "2026.2.23", "2026年2月23日"
+    function parseDateStr(str) {
+      if (!str) return null;
+      const match = str.match(/(\d{4})[\/\.\-\s年]+(\d{1,2})[\/\.\-\s月]+(\d{1,2})/);
+      if (match) {
+        const y = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10) - 1;
+        const d = parseInt(match[3], 10);
+        return new Date(y, m, d);
       }
-      return row.c[colIndex].f ? row.c[colIndex].f : String(row.c[colIndex].v);
+      return null;
     }
 
     async function fetchWeeklyQuote() {
@@ -180,65 +265,91 @@
       const contentEl = document.getElementById('quote-content');
 
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('無法連線至 Google 試算表，請確認權限與 SHEET_ID。');
+        const response = await fetch(csvUrl);
+        if (!response.ok) throw new Error('無法讀取試算表，請確認權限已設為「知道連結的人皆可檢視」且 SHEET_ID 正確。');
+
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+
+        if (!rows || rows.length === 0) throw new Error('試算表內容為空！');
+
+        // 🎯 1. 動態搜尋欄位索引 (防止欄位名稱或位置有微幅偏差)
+        let colWeek = 0, colDate = 1, colEn = 2, colZh = 3;
+        const header = rows[0].map(c => c.toLowerCase());
         
-        const rawText = await response.text();
-        const jsonString = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
-        const data = JSON.parse(jsonString);
+        header.forEach((text, idx) => {
+          if (text.includes('週') || text.includes('week')) colWeek = idx;
+          else if (text.includes('日') || text.includes('date')) colDate = idx;
+          else if (text.includes('英') || text.includes('eng')) colEn = idx;
+          else if (text.includes('中') || text.includes('chi')) colZh = idx;
+        });
 
-        const rows = data.table.rows;
-        if (!rows || rows.length === 0) throw new Error('試算表中沒有任何資料！');
-
+        // 🎯 2. 過濾資料列 (跳過標題列)
+        const parsedItems = [];
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // 將時間歸零，僅比較日期
+        today.setHours(0, 0, 0, 0);
 
-        let matchedRow = null;
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          const dateVal = r[colDate] || '';
+          const dObj = parseDateStr(dateVal);
 
-        // 🎯 1. 比對邏輯：尋找 B 欄日期 <= 今天 的最新一列
-        for (let row of rows) {
-          const dateRaw = getCellValue(row, 1); // B 欄：日期
-          const rowDate = parseSheetDate(dateRaw);
-
-          if (rowDate) {
-            rowDate.setHours(0, 0, 0, 0);
-            if (rowDate <= today) {
-              matchedRow = row; // 找到最新開始的這一週
-            }
+          // 只要能解析出日期，就代表是有效的每週資料列
+          if (dObj) {
+            dObj.setHours(0, 0, 0, 0);
+            parsedItems.push({
+              rowIndex: i + 1,
+              week: r[colWeek] || '',
+              dateStr: dateVal,
+              dateObj: dObj,
+              en: r[colEn] || '',
+              zh: r[colZh] || ''
+            });
           }
         }
 
-        // 若今天日期比試算表中第一列的日期還早，預設選取第一列
-        if (!matchedRow) {
-          matchedRow = rows[0];
+        if (parsedItems.length === 0) {
+          throw new Error('未在 B 欄找到任何符合日期格式（如 2026/2/23）的資料！');
         }
 
-        // 🎯 2. 讀取與處理資料
-        const weekRaw = getCellValue(matchedRow, 0).trim(); // A 欄：週次
-        const englishStr = getCellValue(matchedRow, 2);      // C 欄：英語
-        const chineseStr = getCellValue(matchedRow, 3);      // D 欄：中文
+        // 按日期由舊到新排序
+        parsedItems.sort((a, b) => a.dateObj - b.dateObj);
 
-        currentEnglishText = englishStr;
+        // 🎯 3. 尋找「日期 <= 今天」的最佳週次
+        let selected = null;
+        for (let item of parsedItems) {
+          if (item.dateObj <= today) {
+            selected = item; // 會一直更新直到最接近今天的那一週
+          }
+        }
 
-        // 🎯 3. 處理 A 欄週次顯示格式
+        // 若今天日期早於表格第一筆，則顯示第一筆
+        if (!selected) {
+          selected = parsedItems[0];
+        }
+
+        // 🎯 4. 格式化週次名稱顯示
         let weekTagText = '每週一句';
-        if (weekRaw) {
-          if (/^\d+$/.test(weekRaw)) {
-            // 如果 A 欄只填純數字（例如 "1"），自動轉換為 "第 1 週"
-            weekTagText = `第 ${weekRaw} 週`;
+        if (selected.week) {
+          const numMatch = selected.week.match(/\d+/);
+          if (/^\d+$/.test(selected.week)) {
+            weekTagText = `第 ${selected.week} 週`;
           } else {
-            // 如果 A 欄已經寫了文字（例如 "第1週" 或 "第一週"），直接原樣顯示
-            weekTagText = weekRaw;
+            weekTagText = selected.week;
           }
         }
 
-        // 渲染到網頁
+        // 渲染主要畫面
+        currentEnglishText = selected.en;
         document.getElementById('week-tag').textContent = weekTagText;
-        document.getElementById('english-text').textContent = englishStr || '（無英文內容）';
-        document.getElementById('chinese-text').textContent = chineseStr || '（無中文翻譯）';
+        document.getElementById('english-text').textContent = selected.en || '（無英文內容）';
+        document.getElementById('chinese-text').textContent = selected.zh || '（無中文翻譯）';
 
         loadingEl.classList.add('hidden');
         contentEl.classList.remove('hidden');
+
+        // 🎯 5. 渲染除錯檢視面板內容
+        renderDebugInfo(today, parsedItems, selected);
 
       } catch (err) {
         console.error(err);
@@ -246,6 +357,35 @@
         errorEl.textContent = `❌ 載入失敗：${err.message}`;
         errorEl.classList.remove('hidden');
       }
+    }
+
+    // 渲染診斷資訊
+    function renderDebugInfo(today, items, selected) {
+      const infoEl = document.getElementById('debug-info');
+      const tbody = document.getElementById('debug-tbody');
+
+      const todayStr = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+      infoEl.innerHTML = `📅 <b>今天檢測日期：</b> ${todayStr}<br>📊 <b>共成功解析資料列數：</b> ${items.length} 筆`;
+
+      tbody.innerHTML = items.map(item => {
+        const isSelected = item.rowIndex === selected.rowIndex;
+        const status = isSelected ? '✅ 當前顯示' : (item.dateObj > today ? '⏳ 未到' : '已過期');
+        return `
+          <tr class="${isSelected ? 'active-row' : ''}">
+            <td>${status}</td>
+            <td>${item.week}</td>
+            <td>${item.dateStr}</td>
+            <td>${item.en}</td>
+            <td>${item.zh}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 切換除錯面板顯示
+    function toggleDebug() {
+      const box = document.getElementById('debug-box');
+      box.classList.toggle('hidden');
     }
 
     // 發音功能
