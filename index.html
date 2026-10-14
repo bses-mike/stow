@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>每週一句 - Weekly Quote</title>
+  <style>
+    :root {
+      --primary-color: #4a90e2;
+      --bg-color: #f4f7f6;
+      --card-bg: #ffffff;
+      --text-dark: #2c3e50;
+      --text-muted: #7f8c8d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "微軟正黑體", "Microsoft JhengHei";
+      background-color: var(--bg-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      padding: 30px;
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    .tag {
+      display: inline-block;
+      background-color: #e8f2ff;
+      color: var(--primary-color);
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    .quote-en {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-dark);
+      line-height: 1.4;
+      margin-bottom: 15px;
+    }
+
+    .quote-zh {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 0.2s ease;
+    }
+
+    .btn:hover {
+      background-color: #357abd;
+    }
+
+    .status-msg {
+      font-size: 1rem;
+      color: var(--text-muted);
+      padding: 20px;
+    }
+
+    .error-msg {
+      color: #e74c3c;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="card">
+    <!-- 載入與錯誤訊息區塊 -->
+    <div id="loading" class="status-msg">⏳ 正在讀取每週一句...</div>
+    <div id="error" class="status-msg error-msg hidden"></div>
+
+    <!-- 主要內容區塊 -->
+    <article id="quote-content" class="hidden">
+      <div id="week-tag" class="tag">第 - 週</div>
+      <p id="english-text" class="quote-en"></p>
+      <p id="chinese-text" class="quote-zh"></p>
+      <div class="actions">
+        <button id="speak-btn" class="btn" onclick="speakEnglish()">🔊 發音</button>
+      </div>
+    </article>
+  </main>
+
+  <script>
+    // ==========================================
+    // ⚙️ 設定區（請將您的 Google 試算表 ID 貼於此處）
+    // ==========================================
+    const SHEET_ID = '1pkrytTQLG_axKCpRJiijE6yz8xnZOAaX_dViXACuHW8'; // 替換為您的試算表 ID
+    const SHEET_NAME = ''; // 第一個工作表可留空
+
+    // Google Visualization API URL
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json${SHEET_NAME ? `&sheet=${encodeURIComponent(SHEET_NAME)}` : ''}`;
+
+    let currentEnglishText = '';
+
+    // 解析 B 欄日期 (支援 "2026/2/23", "2026/02/23", "2026-02-23" 或 Date(...) 格式)
+    function parseSheetDate(rawVal) {
+      if (!rawVal) return null;
+      const strVal = String(rawVal).trim();
+
+      // 處理 Google API 原生 Date(YYYY,M,D) 格式
+      const gvizMatch = strVal.match(/Date\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (gvizMatch) {
+        return new Date(parseInt(gvizMatch[1], 10), parseInt(gvizMatch[2], 10), parseInt(gvizMatch[3], 10));
+      }
+
+      // 處理斜線或橫線分隔日期："2026/2/23"
+      const parts = strVal.split(/[\/-]/);
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // JS 月份為 0~11
+        const day = parseInt(parts[2], 10);
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+          return new Date(year, month, day);
+        }
+      }
+
+      const d = new Date(strVal);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // 安全取得欄位內容
+    function getCellValue(row, colIndex) {
+      if (!row || !row.c || !row.c[colIndex] || row.c[colIndex].v === null || row.c[colIndex].v === undefined) {
+        return '';
+      }
+      return row.c[colIndex].f ? row.c[colIndex].f : String(row.c[colIndex].v);
+    }
+
+    async function fetchWeeklyQuote() {
+      const loadingEl = document.getElementById('loading');
+      const errorEl = document.getElementById('error');
+      const contentEl = document.getElementById('quote-content');
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('無法連線至 Google 試算表，請確認權限與 SHEET_ID。');
+        
+        const rawText = await response.text();
+        const jsonString = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
+        const data = JSON.parse(jsonString);
+
+        const rows = data.table.rows;
+        if (!rows || rows.length === 0) throw new Error('試算表中沒有任何資料！');
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // 將時間歸零，僅比較日期
+
+        let matchedRow = null;
+
+        // 🎯 1. 比對邏輯：尋找 B 欄日期 <= 今天 的最新一列
+        for (let row of rows) {
+          const dateRaw = getCellValue(row, 1); // B 欄：日期
+          const rowDate = parseSheetDate(dateRaw);
+
+          if (rowDate) {
+            rowDate.setHours(0, 0, 0, 0);
+            if (rowDate <= today) {
+              matchedRow = row; // 找到最新開始的這一週
+            }
+          }
+        }
+
+        // 若今天日期比試算表中第一列的日期還早，預設選取第一列
+        if (!matchedRow) {
+          matchedRow = rows[0];
+        }
+
+        // 🎯 2. 讀取與處理資料
+        const weekRaw = getCellValue(matchedRow, 0).trim(); // A 欄：週次
+        const englishStr = getCellValue(matchedRow, 2);      // C 欄：英語
+        const chineseStr = getCellValue(matchedRow, 3);      // D 欄：中文
+
+        currentEnglishText = englishStr;
+
+        // 🎯 3. 處理 A 欄週次顯示格式
+        let weekTagText = '每週一句';
+        if (weekRaw) {
+          if (/^\d+$/.test(weekRaw)) {
+            // 如果 A 欄只填純數字（例如 "1"），自動轉換為 "第 1 週"
+            weekTagText = `第 ${weekRaw} 週`;
+          } else {
+            // 如果 A 欄已經寫了文字（例如 "第1週" 或 "第一週"），直接原樣顯示
+            weekTagText = weekRaw;
+          }
+        }
+
+        // 渲染到網頁
+        document.getElementById('week-tag').textContent = weekTagText;
+        document.getElementById('english-text').textContent = englishStr || '（無英文內容）';
+        document.getElementById('chinese-text').textContent = chineseStr || '（無中文翻譯）';
+
+        loadingEl.classList.add('hidden');
+        contentEl.classList.remove('hidden');
+
+      } catch (err) {
+        console.error(err);
+        loadingEl.classList.add('hidden');
+        errorEl.textContent = `❌ 載入失敗：${err.message}`;
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    // 發音功能
+    function speakEnglish() {
+      if (!currentEnglishText) return;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(currentEnglishText);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        alert('您的瀏覽器不支援語音朗讀功能。');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', fetchWeeklyQuote);
+  </script>
+</body>
+</html>
