@@ -6,11 +6,10 @@
   <title>每週一句 - Weekly Quote</title>
   <style>
     :root {
-      --primary-color: #4a90e2;
-      --bg-color: #f4f7f6;
-      --card-bg: #ffffff;
-      --text-dark: #2c3e50;
-      --text-muted: #7f8c8d;
+      --primary-color: #3b82f6;   /* 主按鈕與標籤顏色 */
+      --card-bg: #ffffff;         /* 卡片背景（純白） */
+      --text-dark: #1e293b;       /* 英文文字顏色 */
+      --text-muted: #64748b;      /* 中文與副標題顏色 */
     }
 
     * {
@@ -21,7 +20,8 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "微軟正黑體", "Microsoft JhengHei";
-      background-color: var(--bg-color);
+      /* 🎯 淡淡柔和漸層底色 (可在此更換喜歡的漸層色) */
+      background: linear-gradient(135deg, #eef2f3 0%, #e0eafc 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -32,32 +32,41 @@
 
     .card {
       background: var(--card-bg);
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-      padding: 30px;
+      border-radius: 20px;
+      /* 柔和透亮的陰影 */
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      padding: 40px 30px;
       max-width: 650px;
       width: 100%;
       text-align: center;
       position: relative;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
     }
 
     .tag {
       display: inline-block;
-      background-color: #e8f2ff;
+      background-color: #eff6ff;
       color: var(--primary-color);
       font-weight: 600;
-      padding: 6px 16px;
+      padding: 6px 18px;
       border-radius: 20px;
       font-size: 0.95rem;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
     }
 
     .quote-en {
-      font-size: 1.5rem;
+      font-size: 1.55rem;
       font-weight: 600;
       color: var(--text-dark);
-      line-height: 1.4;
-      margin-bottom: 15px;
+      line-height: 1.45;
+      margin-bottom: 16px;
       word-break: break-word;
     }
 
@@ -65,7 +74,7 @@
       font-size: 1.15rem;
       color: var(--text-muted);
       line-height: 1.5;
-      margin-bottom: 25px;
+      margin-bottom: 28px;
       word-break: break-word;
     }
 
@@ -79,18 +88,21 @@
       background-color: var(--primary-color);
       color: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
+      padding: 10px 22px;
+      border-radius: 10px;
       font-size: 0.95rem;
+      font-weight: 500;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      transition: background-color 0.2s ease;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+      transition: all 0.2s ease;
     }
 
     .btn:hover {
-      background-color: #357abd;
+      background-color: #2563eb;
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
     }
 
     .status-msg {
@@ -100,7 +112,7 @@
     }
 
     .error-msg {
-      color: #e74c3c;
+      color: #ef4444;
     }
 
     .hidden {
@@ -113,27 +125,34 @@
       max-width: 650px;
       width: 100%;
       font-size: 0.85rem;
-      color: #555;
+      color: #64748b;
     }
 
     .debug-toggle-btn {
-      background: none;
-      border: 1px solid #ccc;
-      color: #666;
-      padding: 6px 12px;
-      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(5px);
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      padding: 6px 14px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 0.85rem;
       margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+
+    .debug-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.9);
     }
 
     .debug-box {
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
       padding: 15px;
       text-align: left;
       overflow-x: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     }
 
     .debug-table {
@@ -143,17 +162,17 @@
     }
 
     .debug-table th, .debug-table td {
-      border: 1px solid #eee;
-      padding: 6px 8px;
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
       font-size: 0.8rem;
     }
 
     .debug-table th {
-      background-color: #f8f9fa;
+      background-color: #f8fafc;
     }
 
     .active-row {
-      background-color: #e6f4ea !important;
+      background-color: #dcfce7 !important;
       font-weight: bold;
     }
   </style>
@@ -203,12 +222,11 @@
     const SHEET_ID = '1pkrytTQLG_axKCpRJiijE6yz8xnZOAaX_dViXACuHW8'; // 貼上您的試算表 ID
     const SHEET_NAME = ''; // 若有指定頁籤名稱可填寫，否則預設第一個工作表
 
-    // CSV 導出網址 (比 JSON 更穩定且不受格式干擾)
     const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv${SHEET_NAME ? `&sheet=${encodeURIComponent(SHEET_NAME)}` : ''}`;
 
     let currentEnglishText = '';
 
-    // CSV 格式解析器
+    // CSV 解析器
     function parseCSV(text) {
       const lines = [];
       let row = [];
@@ -246,7 +264,7 @@
       return lines;
     }
 
-    // 解析日期：支援 "2026/2/23", "2026/02/23", "2026-2-23", "2026.2.23", "2026年2月23日"
+    // 解析日期
     function parseDateStr(str) {
       if (!str) return null;
       const match = str.match(/(\d{4})[\/\.\-\s年]+(\d{1,2})[\/\.\-\s月]+(\d{1,2})/);
@@ -273,7 +291,7 @@
 
         if (!rows || rows.length === 0) throw new Error('試算表內容為空！');
 
-        // 🎯 1. 動態搜尋欄位索引 (防止欄位名稱或位置有微幅偏差)
+        // 🎯 1. 動態搜尋欄位索引
         let colWeek = 0, colDate = 1, colEn = 2, colZh = 3;
         const header = rows[0].map(c => c.toLowerCase());
         
@@ -284,7 +302,7 @@
           else if (text.includes('中') || text.includes('chi')) colZh = idx;
         });
 
-        // 🎯 2. 過濾資料列 (跳過標題列)
+        // 🎯 2. 過濾資料列
         const parsedItems = [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -294,7 +312,6 @@
           const dateVal = r[colDate] || '';
           const dObj = parseDateStr(dateVal);
 
-          // 只要能解析出日期，就代表是有效的每週資料列
           if (dObj) {
             dObj.setHours(0, 0, 0, 0);
             parsedItems.push({
@@ -319,11 +336,10 @@
         let selected = null;
         for (let item of parsedItems) {
           if (item.dateObj <= today) {
-            selected = item; // 會一直更新直到最接近今天的那一週
+            selected = item;
           }
         }
 
-        // 若今天日期早於表格第一筆，則顯示第一筆
         if (!selected) {
           selected = parsedItems[0];
         }
@@ -331,7 +347,6 @@
         // 🎯 4. 格式化週次名稱顯示
         let weekTagText = '每週一句';
         if (selected.week) {
-          const numMatch = selected.week.match(/\d+/);
           if (/^\d+$/.test(selected.week)) {
             weekTagText = `第 ${selected.week} 週`;
           } else {
@@ -348,7 +363,7 @@
         loadingEl.classList.add('hidden');
         contentEl.classList.remove('hidden');
 
-        // 🎯 5. 渲染除錯檢視面板內容
+        // 渲染診斷資訊
         renderDebugInfo(today, parsedItems, selected);
 
       } catch (err) {
@@ -382,13 +397,11 @@
       }).join('');
     }
 
-    // 切換除錯面板顯示
     function toggleDebug() {
       const box = document.getElementById('debug-box');
       box.classList.toggle('hidden');
     }
 
-    // 發音功能
     function speakEnglish() {
       if (!currentEnglishText) return;
       if ('speechSynthesis' in window) {
