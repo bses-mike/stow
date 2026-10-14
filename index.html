@@ -6,11 +6,12 @@
   <title>每週一句 - Weekly Quote</title>
   <style>
     :root {
-      /* 預設主題變數（會在 JS 中隨機更換） */
+      /* 主題變數 (會由 JS 隨機更換卡片底色與搭配色) */
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
       --primary-color: #3b82f6;
       --primary-hover: #2563eb;
       --tag-bg: #eff6ff;
-      --card-bg: #ffffff;
       --text-dark: #1e293b;
       --text-muted: #64748b;
     }
@@ -23,32 +24,33 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "微軟正黑體", "Microsoft JhengHei";
-      /* 背景漸層會由 JavaScript 隨機設定 */
+      /* 網頁大背景保持極簡中性底色 */
+      background-color: #f8fafc;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       padding: 20px;
-      transition: background 0.5s ease;
     }
 
+    /* 🎯 顯示內容卡片（底色隨機變化區） */
     .card {
-      background: var(--card-bg);
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.8);
-      padding: 40px 30px;
+      background: var(--card-bg); /* 隨機淡雅底色 */
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.05);
+      padding: 45px 35px;
       max-width: 650px;
       width: 100%;
       text-align: center;
       position: relative;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: all 0.5s ease;
     }
 
     .card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
     }
 
     .tag {
@@ -56,7 +58,7 @@
       background-color: var(--tag-bg);
       color: var(--primary-color);
       font-weight: 600;
-      padding: 6px 18px;
+      padding: 6px 20px;
       border-radius: 20px;
       font-size: 0.95rem;
       margin-bottom: 24px;
@@ -65,11 +67,11 @@
     }
 
     .quote-en {
-      font-size: 1.55rem;
+      font-size: 1.6rem;
       font-weight: 600;
       color: var(--text-dark);
       line-height: 1.45;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       word-break: break-word;
     }
 
@@ -77,7 +79,7 @@
       font-size: 1.15rem;
       color: var(--text-muted);
       line-height: 1.5;
-      margin-bottom: 28px;
+      margin-bottom: 30px;
       word-break: break-word;
     }
 
@@ -91,21 +93,21 @@
       background-color: var(--primary-color);
       color: white;
       border: none;
-      padding: 10px 22px;
-      border-radius: 10px;
+      padding: 12px 24px;
+      border-radius: 12px;
       font-size: 0.95rem;
       font-weight: 500;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transition: all 0.2s ease;
     }
 
     .btn:hover {
       background-color: var(--primary-hover);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
     }
 
     .status-msg {
@@ -122,7 +124,7 @@
       display: none !important;
     }
 
-    /* 🔍 除錯偵錯區樣式 */
+    /* 🔍 除錯面板樣式 */
     .debug-section {
       margin-top: 25px;
       max-width: 650px;
@@ -132,8 +134,7 @@
     }
 
     .debug-toggle-btn {
-      background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(5px);
+      background: #ffffff;
       border: 1px solid #cbd5e1;
       color: #475569;
       padding: 6px 14px;
@@ -141,15 +142,10 @@
       cursor: pointer;
       font-size: 0.85rem;
       margin-bottom: 10px;
-      transition: background 0.2s;
-    }
-
-    .debug-toggle-btn:hover {
-      background: rgba(255, 255, 255, 0.9);
     }
 
     .debug-box {
-      background: rgba(255, 255, 255, 0.9);
+      background: #ffffff;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       padding: 15px;
@@ -182,6 +178,7 @@
 </head>
 <body>
 
+  <!-- 🎯 顯示內容的卡片主體 -->
   <main class="card">
     <!-- 載入與錯誤訊息區塊 -->
     <div id="loading" class="status-msg">⏳ 正在連線 Google 試算表...</div>
@@ -225,41 +222,46 @@
     const SHEET_ID = '1pkrytTQLG_axKCpRJiijE6yz8xnZOAaX_dViXACuHW8'; // 貼上您的試算表 ID
     const SHEET_NAME = ''; // 若有指定頁籤名稱可填寫，否則預設第一個工作表
 
-    // 🎨 3 種柔和底色主題設定
-    const THEMES = [
+    // 🎨 3 種「顯示內容卡片」的柔和淡雅底色風格
+    const CARD_THEMES = [
       {
-        name: '淡雅藍天',
-        bg: 'linear-gradient(135deg, #eef2f3 0%, #e0eafc 100%)',
-        primary: '#3b82f6',
-        primaryHover: '#2563eb',
-        tagBg: '#eff6ff'
+        name: '莫蘭迪暖燕麥',
+        cardBg: 'linear-gradient(135deg, #fffcf8 0%, #fef3e2 100%)',
+        cardBorder: '#fce3c1',
+        primary: '#b47b48',
+        primaryHover: '#986232',
+        tagBg: '#fbe3d2'
       },
       {
-        name: '莫蘭迪暖奶茶',
-        bg: 'linear-gradient(135deg, #fbf7f4 0%, #f2e9e1 100%)',
-        primary: '#c07d58',
-        primaryHover: '#a66442',
-        tagBg: '#fef3c7'
+        name: '淡雅鼠尾草綠',
+        cardBg: 'linear-gradient(135deg, #f7fbf8 0%, #e8f5ed 100%)',
+        cardBorder: '#c6e7d0',
+        primary: '#2d8a60',
+        primaryHover: '#216948',
+        tagBg: '#d6ebd9'
       },
       {
-        name: '清爽薄荷綠',
-        bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-        primary: '#059669',
-        primaryHover: '#047857',
-        tagBg: '#ecfdf5'
+        name: '輕柔天空藍',
+        cardBg: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)',
+        cardBorder: '#b9e6fe',
+        primary: '#0284c7',
+        primaryHover: '#0369a1',
+        tagBg: '#d7effe'
       }
     ];
 
-    // 🎯 隨機套用主題色
-    function applyRandomTheme() {
-      const randomTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
+    // 🎯 隨機套用內容卡片底色
+    function applyRandomCardTheme() {
+      const randomTheme = CARD_THEMES[Math.floor(Math.random() * CARD_THEMES.length)];
       
-      document.body.style.background = randomTheme.bg;
-      document.documentElement.style.setProperty('--primary-color', randomTheme.primary);
-      document.documentElement.style.setProperty('--primary-hover', randomTheme.primaryHover);
-      document.documentElement.style.setProperty('--tag-bg', randomTheme.tagBg);
+      const root = document.documentElement;
+      root.style.setProperty('--card-bg', randomTheme.cardBg);
+      root.style.setProperty('--card-border', randomTheme.cardBorder);
+      root.style.setProperty('--primary-color', randomTheme.primary);
+      root.style.setProperty('--primary-hover', randomTheme.primaryHover);
+      root.style.setProperty('--tag-bg', randomTheme.tagBg);
       
-      console.log(`🎨 本次隨機載入主題：${randomTheme.name}`);
+      console.log(`🎨 本次顯示卡片底色風格：${randomTheme.name}`);
     }
 
     const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv${SHEET_NAME ? `&sheet=${encodeURIComponent(SHEET_NAME)}` : ''}`;
@@ -369,7 +371,7 @@
           throw new Error('未在 B 欄找到任何符合日期格式（如 2026/2/23）的資料！');
         }
 
-        // 按日期由舊到新排序
+        // 按日期排序
         parsedItems.sort((a, b) => a.dateObj - b.dateObj);
 
         // 3. 尋找「日期 <= 今天」的最佳週次
@@ -384,7 +386,7 @@
           selected = parsedItems[0];
         }
 
-        // 4. 格式化週次名稱顯示
+        // 4. 格式化 A 欄週次名稱
         let weekTagText = '每週一句';
         if (selected.week) {
           if (/^\d+$/.test(selected.week)) {
@@ -394,7 +396,7 @@
           }
         }
 
-        // 渲染主要畫面
+        // 渲染主要內容
         currentEnglishText = selected.en;
         document.getElementById('week-tag').textContent = weekTagText;
         document.getElementById('english-text').textContent = selected.en || '（無英文內容）';
@@ -455,9 +457,9 @@
       }
     }
 
-    // 初始化：先設定隨機主題，再抓取試算表資料
+    // 初始化：隨機套用內容卡片底色，並讀取試算表
     window.addEventListener('DOMContentLoaded', () => {
-      applyRandomTheme();
+      applyRandomCardTheme();
       fetchWeeklyQuote();
     });
   </script>
