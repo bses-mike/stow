@@ -6,10 +6,13 @@
   <title>每週一句 - Weekly Quote</title>
   <style>
     :root {
-      --primary-color: #3b82f6;   /* 主按鈕與標籤顏色 */
-      --card-bg: #ffffff;         /* 卡片背景（純白） */
-      --text-dark: #1e293b;       /* 英文文字顏色 */
-      --text-muted: #64748b;      /* 中文與副標題顏色 */
+      /* 預設主題變數（會在 JS 中隨機更換） */
+      --primary-color: #3b82f6;
+      --primary-hover: #2563eb;
+      --tag-bg: #eff6ff;
+      --card-bg: #ffffff;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
     }
 
     * {
@@ -20,20 +23,19 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, "微軟正黑體", "Microsoft JhengHei";
-      /* 🎯 淡淡柔和漸層底色 (可在此更換喜歡的漸層色) */
-      background: linear-gradient(135deg, #eef2f3 0%, #e0eafc 100%);
+      /* 背景漸層會由 JavaScript 隨機設定 */
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       padding: 20px;
+      transition: background 0.5s ease;
     }
 
     .card {
       background: var(--card-bg);
       border-radius: 20px;
-      /* 柔和透亮的陰影 */
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.8);
       padding: 40px 30px;
@@ -51,7 +53,7 @@
 
     .tag {
       display: inline-block;
-      background-color: #eff6ff;
+      background-color: var(--tag-bg);
       color: var(--primary-color);
       font-weight: 600;
       padding: 6px 18px;
@@ -59,6 +61,7 @@
       font-size: 0.95rem;
       margin-bottom: 24px;
       letter-spacing: 0.5px;
+      transition: all 0.3s ease;
     }
 
     .quote-en {
@@ -96,13 +99,13 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       transition: all 0.2s ease;
     }
 
     .btn:hover {
-      background-color: #2563eb;
-      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+      background-color: var(--primary-hover);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
     }
 
     .status-msg {
@@ -222,6 +225,43 @@
     const SHEET_ID = '1pkrytTQLG_axKCpRJiijE6yz8xnZOAaX_dViXACuHW8'; // 貼上您的試算表 ID
     const SHEET_NAME = ''; // 若有指定頁籤名稱可填寫，否則預設第一個工作表
 
+    // 🎨 3 種柔和底色主題設定
+    const THEMES = [
+      {
+        name: '淡雅藍天',
+        bg: 'linear-gradient(135deg, #eef2f3 0%, #e0eafc 100%)',
+        primary: '#3b82f6',
+        primaryHover: '#2563eb',
+        tagBg: '#eff6ff'
+      },
+      {
+        name: '莫蘭迪暖奶茶',
+        bg: 'linear-gradient(135deg, #fbf7f4 0%, #f2e9e1 100%)',
+        primary: '#c07d58',
+        primaryHover: '#a66442',
+        tagBg: '#fef3c7'
+      },
+      {
+        name: '清爽薄荷綠',
+        bg: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+        primary: '#059669',
+        primaryHover: '#047857',
+        tagBg: '#ecfdf5'
+      }
+    ];
+
+    // 🎯 隨機套用主題色
+    function applyRandomTheme() {
+      const randomTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
+      
+      document.body.style.background = randomTheme.bg;
+      document.documentElement.style.setProperty('--primary-color', randomTheme.primary);
+      document.documentElement.style.setProperty('--primary-hover', randomTheme.primaryHover);
+      document.documentElement.style.setProperty('--tag-bg', randomTheme.tagBg);
+      
+      console.log(`🎨 本次隨機載入主題：${randomTheme.name}`);
+    }
+
     const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv${SHEET_NAME ? `&sheet=${encodeURIComponent(SHEET_NAME)}` : ''}`;
 
     let currentEnglishText = '';
@@ -264,7 +304,7 @@
       return lines;
     }
 
-    // 解析日期
+    // 解析日期 (2026/2/23, 2026-2-23...)
     function parseDateStr(str) {
       if (!str) return null;
       const match = str.match(/(\d{4})[\/\.\-\s年]+(\d{1,2})[\/\.\-\s月]+(\d{1,2})/);
@@ -291,7 +331,7 @@
 
         if (!rows || rows.length === 0) throw new Error('試算表內容為空！');
 
-        // 🎯 1. 動態搜尋欄位索引
+        // 1. 動態搜尋欄位索引
         let colWeek = 0, colDate = 1, colEn = 2, colZh = 3;
         const header = rows[0].map(c => c.toLowerCase());
         
@@ -302,7 +342,7 @@
           else if (text.includes('中') || text.includes('chi')) colZh = idx;
         });
 
-        // 🎯 2. 過濾資料列
+        // 2. 過濾資料列
         const parsedItems = [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -332,7 +372,7 @@
         // 按日期由舊到新排序
         parsedItems.sort((a, b) => a.dateObj - b.dateObj);
 
-        // 🎯 3. 尋找「日期 <= 今天」的最佳週次
+        // 3. 尋找「日期 <= 今天」的最佳週次
         let selected = null;
         for (let item of parsedItems) {
           if (item.dateObj <= today) {
@@ -344,7 +384,7 @@
           selected = parsedItems[0];
         }
 
-        // 🎯 4. 格式化週次名稱顯示
+        // 4. 格式化週次名稱顯示
         let weekTagText = '每週一句';
         if (selected.week) {
           if (/^\d+$/.test(selected.week)) {
@@ -415,7 +455,11 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', fetchWeeklyQuote);
+    // 初始化：先設定隨機主題，再抓取試算表資料
+    window.addEventListener('DOMContentLoaded', () => {
+      applyRandomTheme();
+      fetchWeeklyQuote();
+    });
   </script>
 </body>
 </html>
